@@ -1,0 +1,37 @@
+﻿@model TheSpellbook.Models.ViewModels.Account.LoginVM
+
+@using (Html.BeginForm("Login", "Account", FormMethod.Post, new { id = "loginform"})) 
+{
+    @Html.AntiForgeryToken()
+    
+    <div class="form-horizontal loginform">
+        <div class="alert alert-danger em">Incorrect username/password combination.</div>
+        @Html.ValidationSummary(true, "", new {@class = "text-danger"})
+        <div class="form-group">
+            @Html.LabelFor(model => model.Username, htmlAttributes: new {@class = "control-label col-md-3"})
+            <div class="col-md-9">
+                @Html.EditorFor(model => model.Username, new {htmlAttributes = new {@class = "form-control"}})
+                @Html.ValidationMessageFor(model => model.Username, "", new {@class = "text-danger"})
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.Password, htmlAttributes: new {@class = "control-label col-md-3"})
+            <div class="col-md-9">
+                @Html.PasswordFor(model => model.Password, new {@class = "form-control"})
+                @Html.ValidationMessageFor(model => model.Password, "", new {@class = "text-danger"})
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="col-md-offset-2 col-md-10">
+                <input type="submit" value="Login" class="btn btn-default"/>
+            </div>
+        </div>
+
+        <div class="ajaxdiv hide">
+            <img src="~/Content/Images/ajax-loaderwhite.gif" />
+        </div>
+
+    </div>
+}

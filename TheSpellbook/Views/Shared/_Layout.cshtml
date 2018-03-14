@@ -1,0 +1,88 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewBag.Title - The Spellbook</title>
+    @Styles.Render("~/Content/css")
+    @Scripts.Render("~/bundles/modernizr")
+</head>
+<body>
+    <div class="navbar navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                @Html.ActionLink("The Spellbook", "Index", "Account", new { area = "" }, new { @class = "navbar-brand" })
+            </div>
+            <div class="navbar-collapse collapse">
+                <ul class="nav navbar-nav">
+                    <li class="livesearchli">
+                        <input type="text" class="searchtext" id="searchtext" placeholder="Find a Friend..." />
+                        <ul id="livesearchul"></ul>
+                    </li>
+                </ul>
+                
+                @if (Request.IsAuthenticated)
+                {
+                    <ul class="nav navbar-nav navbar-right owner">
+                        <li class="frcountli">
+                            @if (ViewBag.FRCount != null)
+                            {
+                                <span class="glyphicon glyphicon-user red frnotif @User.Identity.Name">
+                                    <span>@ViewBag.FRCount</span>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="glyphicon glyphicon-user frnotif @User.Identity.Name"></span>
+                            }
+                            <ul id="frnotiful"></ul>
+                        </li>
+                        <li class="msgcountli">
+                            @if (ViewBag.MsgCount > 0)
+                            {
+                                <span class="glyphicon glyphicon-comment red msgnotif @User.Identity.Name">
+                                    <span>@ViewBag.MsgCount</span>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="glyphicon glyphicon-comment msgnotif @User.Identity.Name"></span>
+                            }
+                            <ul id="msgnotiful"></ul>
+                        </li>
+                        <li class="name">@ViewBag.FullName</li>
+                        <li class="logout">@Html.ActionLink("Logout", "Logout", "Account")</li>
+                    </ul>
+                }
+
+            </div>
+        </div>
+    </div>
+    <div class="container body-content">
+        @RenderBody()
+        <hr />
+        <footer>
+            <p>&copy; @DateTime.Now.Year - The Spellbook</p>
+        </footer>
+    </div>
+    
+    <div class="chatboxholder" id="chb@(User.Identity.Name)"></div>
+    <div class="chatbox">
+        <h4><span></span></h4>
+        <div class="chatboxtext"></div>
+        <textarea class="chattextarea"></textarea>
+        <br/>
+        <a href="#" class="sendchat">Send</a>
+    </div>
+
+
+    @Scripts.Render("~/bundles/jquery")
+    @Scripts.Render("~/bundles/bootstrap")
+    @RenderSection("scripts", required: false)
+</body>
+</html>

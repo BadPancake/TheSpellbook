@@ -1,0 +1,623 @@
+﻿@using System.Collections.Specialized
+
+@{
+    ViewBag.Title = ViewBag.Username;
+}
+
+<div class="row">
+    
+    <div class="col-xs-12 col-md-6">
+        <p class="userimg">
+            <img src="~/ImageUploads/@ViewBag.ProfilePicture" />
+        </p>
+        
+        <h2>@ViewBag.ViewingFullName (@ViewBag.Username)</h2>
+        
+        @if (ViewBag.userType == "guest")
+        {
+            <div class="friends">
+                @if (ViewBag.NotFriends == "Pending")
+                {
+                    <div class="arefriendsdiv alert alert-warning">
+                        <p>Pending friend request</p>
+                    </div>
+                }
+                else if (ViewBag.NotFriends == "True")
+                {
+                    <div class="arefriendsdiv afc hide alert alert-info">
+                        <a href="#" class="addfriend">Add Friend</a>
+                    </div>
+                }
+                else
+                {
+                    <div class="arefriendsdiv alert alert-success">
+                        <span class="glyphicon glyphicon-thumbs-up"></span> Friends
+                    </div>
+                }
+
+            </div>
+        }
+        
+        <div class="friends @User.Identity.Name alert alert-success">
+            <span>@ViewBag.FCount</span> friend(s)
+        </div>
+
+    </div>
+    
+    <div class="col-xs-12 col-md-6 wall">
+        
+        @if (ViewBag.UserType == "owner")
+        {
+            <h3>Say something</h3>
+
+            if (ViewBag.WallMessage == "")
+            {
+                <textarea id="say@(ViewBag.UserId)" placeholder="Say something..."></textarea>
+            }
+            else
+            {
+                <textarea id="say@(ViewBag.UserId)" placeholder="Say something...">@ViewBag.WallMessage</textarea>
+            }
+
+            <a href="#" id="sendsay" class="ta" data-id="@ViewBag.UserId">Post</a>
+            <img src="~/Content/Images/ajax-loaderblack.gif" class="hide" />
+        }
+
+        @if (ViewBag.UserType == "guest")
+        {
+            if (ViewBag.NotFriends == null)
+            {
+                <div class="sendmsgparent">
+                    <div class="msgtextarea">
+                        <textarea id="msgarea"></textarea>
+                    </div>
+                    <a href="#" id="sendmsg" class="ta">Send Message</a>
+                    <img src="~/Content/Images/ajax-loaderblack.gif" class="hide" />
+                    <div class="sendmsgnotif alert alert-success hide">Message sent.</div>
+                </div>
+            }
+        }
+    </div>
+
+</div>
+
+@if (ViewBag.UserType == "owner")
+{
+    <div class="row friendwallrow">
+        @if (Enumerable.Count(ViewBag.Walls) > 0)
+        {
+            <h3>What your friends are saying...</h3>
+            foreach (var item in ViewBag.Walls)
+            {
+                if (item.Message != "")
+                {
+                    <div class="friendwall">
+                        <img src="~/ImageUploads/@(item.Id).jpg"/>
+                        @item.Message
+                    </div>
+                }
+
+            }
+        }
+        else
+        {
+            @:<h3>Your friends are too quiet!</h3>
+        }
+    </div>
+}
+
+<div class="chat @User.Identity.Name">
+    <ul></ul>
+</div>
+
+@section Scripts {
+    <script src="~/Scripts/jquery.signalR-2.1.2.min.js"></script>
+    <script src="/SignalR/Hubs"></script>
+    <script>
+        $(document).ready(function() {
+
+            /*
+            /Live Search
+            */
+
+            $("input#searchtext").keyup(function() {
+                var searchVal = $("input#searchtext").val();
+
+                $("ul#livesearchul").empty();
+
+                if (searchVal === "" || searchVal === " ") return false;
+
+                var url = "Profile/LiveSearch";
+
+                $.post(url,
+                    { searchVal: searchVal },
+                    function(data) {
+
+                        if ($("ul#livesearchul li.close").length) return;
+
+                        if (data.length > 0) {
+                            $("ul#livesearchul").append("<li class=close>x</li>");
+                        }
+
+                        for (var i = 0; i < data.length; i++) {
+                            var obj = data[i];
+
+                            $("ul#livesearchul").append('<li class=livesearchli><a href="/' +
+                                obj.Username +
+                                '"><img src="ImageUploads/' +
+                                obj.UserId +
+                                '.jpg" />' +
+                                ' ' +
+                                obj.FirstName +
+                                ' ' +
+                                obj.LastName +
+                                ' </a></li>');
+                        }
+
+                    });
+            });
+
+            $("body").on("click",
+                "ul#livesearchul li.close",
+                function() {
+                    $("ul#livesearchul").empty();
+                    $("input#searchtext").val("");
+                });
+
+            /////////////////////////////////////////////////
+
+            /*
+            /Hub
+            */
+
+            //Set up the hub connection
+            var hub = $.connection.echo;
+
+            //Run a test message from Echo Hub
+            hub.client.test = function(msg) {
+                console.log(msg);
+            }
+
+            hub.client.frnotify = function(f, count) {
+                $("span.frnotif." + f + "> span").text(count);
+                $("span.frnotif." + f).addClass("red");
+            }
+
+            hub.client.frcount = function(username, count) {
+
+                if (count > 0) {
+                    $("span.frnotif." + username + "> span").text(count);
+                } else {
+                    $("span.frnotif." + username + "> span").text("");
+                    $("span.frnotif." + username).removeClass("red");
+                }
+            }
+
+            hub.client.fcount = function(u1, u2, count1, count2) {
+
+                if (count1 > 0) {
+                    $("div.friends." + u1 + "> span").text(count1);
+                } else {
+                    $("div.friends." + u1 + "> span").text("0");
+                }
+
+                if (count2 > 0) {
+                    $("div.friends." + u2 + "> span").text(count2);
+                } else {
+                    $("div.friends." + u2 + "> span").text("0");
+                }
+            }
+
+            hub.client.msgcount = function(username, count) {
+
+                if (count > 0) {
+                    $("span.msgnotif." + username + "> span").text(count);
+                    $("span.msgnotif." + username).addClass("red");
+                } else {
+                    $("span.msgnotif." + username + "> span").text("");
+                    $("span.msgnotif." + username).removeClass("red");
+                }
+            }
+
+            hub.client.getonlinefriends = function(user, data) {
+                var result = JSON.parse(data);
+                for (var i = 0; i < result.length; i++) {
+                    var obj = result[i];
+                    $(".chat." + user + "> ul").append('<li class="cf' +
+                        obj.id +
+                        '" data-id="' +
+                        obj.id +
+                        '"><img src="ImageUploads/' +
+                        obj.id +
+                        '.jpg" /> ' +
+                        obj.friend +
+                        '</li>');
+
+                    var chatbox = $("body > .chatbox").clone();
+
+                    chatbox.attr("data-id", obj.id);
+                    chatbox.attr("id", "cb" + obj.id);
+                    chatbox.addClass("hidden");
+
+                    chatbox.find("a.sendchat").attr("data-friend", obj.friend);
+                    chatbox.find("a.sendchat").attr("data-id", obj.id);
+                    chatbox.find("a.sendchat").attr("id", "cb-text" + obj.id);
+
+                    $("#chb" + user).append(chatbox);
+                    $("#chb" + user + " #cb" + obj.id + " h4 > span")
+                        .html('<img src="ImageUploads/' + obj.id + '.jpg" />');
+                }
+            }
+
+            hub.client.updatechat = function(user, data) {
+                var result = JSON.parse(data);
+
+                $(".chat." + user + "> ul").empty();
+
+                for (var i = 0; i < result.length; i++) {
+                    var obj = result[i];
+                    $(".chat." + user + "> ul").append('<li class="cf' +
+                        obj.id +
+                        '" data-id="' +
+                        obj.id +
+                        '"><img src="ImageUploads/' +
+                        obj.id +
+                        '.jpg" /> ' +
+                        obj.friend +
+                        '</li>');
+
+                    if (!($(".chatboxholder #cb" + obj.id).length)) {
+                        var chatbox = $("body > .chatbox").clone();
+
+                        chatbox.attr("data-id", obj.id);
+                        chatbox.attr("id", "cb" + obj.id);
+                        chatbox.addClass("hidden");
+
+                        chatbox.find("a.sendchat").attr("data-friend", obj.friend);
+                        chatbox.find("a.sendchat").attr("data-id", obj.id);
+                        chatbox.find("a.sendchat").attr("id", "cb-text" + obj.id);
+
+                        $("#chb" + user).append(chatbox);
+                        $("#chb" + user + " #cb" + obj.id + " h4 > span")
+                            .html('<img src="ImageUploads/' + obj.id + '.jpg" />');
+                    }
+                }
+            }
+
+            hub.client.sendchat = function(userId, user, friendId, friendUsername, message) {
+                var a = $("#chb" + user + "div#cb" + friendId + " .chatboxtext");
+                a.append("<img src=ImageUploads/" + userId + ".jpg /> " + message + "<br />");
+
+                a.scrollTop(a.prop("scrollHeight"));
+
+                if ($("#chb" + friendUsername + " div#cb" + userId).hasClass("hidden")) {
+                    $('li.cf' + userId).addClass("msg");
+                }
+
+                var b = $("#chb" + friendUsername + "div#cb" + userId + " .chatboxtext");
+                b.append("<img src=ImageUploads/" + userId + ".jpg /> " + message + "<br />");
+
+                b.scrollTop(b.prop("scrollHeight"));
+            }
+
+            //Connect to the hub
+            $.connection.hub
+                .start()
+                .done(function() {
+
+                    hub.server.hello("SignalR is working.");
+
+                    /*
+                    /Add Friend
+                    */
+
+                    $("a.addfriend").click(function(e) {
+                        e.preventDefault();
+
+                        var friend = '@ViewBag.Username';
+
+                        var url = "/Profile/AddFriend";
+
+                        $.post(url,
+                            { friend: friend },
+                            function(data) {
+                                $('.arefriendsdiv').removeClass("alert-info").addClass("alert-warning")
+                                    .html('<p>Pending friend request.</p>');
+                            }).done(function() {
+                            hub.server.notify(friend);
+                        });
+                    });
+
+                    /////////////////////////////////////////////////
+
+                    /*
+                    /Accept Friend Requests
+                    */
+
+                    $("body").on("click",
+                        "a.accept",
+                        function(e) {
+
+                            e.preventDefault();
+
+                            var $this = $(this);
+
+                            var friendId = $this.data("id");
+
+                            var url = "Profile/AcceptFriendRequest";
+
+                            $.post(url,
+                                { friendId: friendId },
+                                function(data) {
+                                }).done(function() {
+                                $this.parent().fadeOut("fast");
+                                hub.server.getFrcount();
+                                hub.server.getFcount(friendId);
+                            });
+                        });
+
+                    /////////////////////////////////////////////////
+
+                    /*
+                    /Decline Friend Requests
+                    */
+
+                    $("body").on("click",
+                        "a.decline",
+                        function(e) {
+
+                            e.preventDefault();
+
+                            var $this = $(this);
+
+                            var friendId = $this.data("id");
+
+                            var url = "Profile/DeclineFriendRequest";
+
+                            $.post(url,
+                                { friendId: friendId },
+                                function(data) {
+                                }).done(function() {
+                                $this.parent().fadeOut("fast");
+                                hub.server.getFrcount();
+                            });
+                        });
+
+                    /////////////////////////////////////////////////
+
+                    /*
+                    /Send Messages
+                    */
+
+                    $("body").on("click",
+                        "a#sendmsg",
+                        function(e) {
+
+                            e.preventDefault();
+
+                            var $this = $(this);
+
+                            $this.parent().find("img").removeClass("hide");
+
+                            var friend = '@ViewBag.Username';
+                            var message = $("#msgarea").val();
+
+                            var url = "Profile/SendMessage";
+
+                            $.post(url,
+                                { friend: friend, message: message },
+                                function(data) {
+                                }).done(function() {
+                                $this.parent().find("img").addClass("hide");
+                                hub.server.notifyOfMessage(friend);
+                                $("#msgarea").val("");
+                                $this.parent().find(".sendmsgnotif").removeClass("hide");
+                                setTimeout(function() {
+                                        $this.parent().find(".sendmsgnotif").fadeOut("fast",
+                                            function() {
+                                                $this.parent().find(".sendmsgnotif").addClass("hide");
+                                            });
+                                    },
+                                    2000);
+                            });
+                        });
+
+                    /////////////////////////////////////////////////
+
+                    /*
+                    /Display Unread Messages
+                    */
+
+                    $("body").on("click",
+                        "span.msgnotif.red",
+                        function() {
+
+                            $("ul#msgnotiful").empty();
+
+                            var url = "Profile/DisplayUnreadMessages";
+
+                            $.post(url,
+                                {},
+                                function(data) {
+
+                                    if (data.length > 0) {
+                                        $("ul#msgnotiful").append("<li class=close>x</li>");
+                                    }
+
+                                    for (var i = 0; i < data.length; i++) {
+                                        var obj = data[i];
+
+                                        $("ul#msgnotiful").append('<li class=msgnotifli><a href="/' +
+                                            obj.FromUsername +
+                                            '"><img src="ImageUploads/' +
+                                            obj.FromId +
+                                            '.jpg" /></a>' +
+                                            ' ' +
+                                            obj.Message +
+                                            '</li>');
+                                    }
+
+                                }).done(function() {
+                                hub.server.notifyOfMessageOwner();
+                            });
+                        });
+
+                    $("body").on("click",
+                        "ul#msgnotiful li.close",
+                        function() {
+                            $("ul#msgnotiful").empty();
+                        });
+
+                    /////////////////////////////////////////////////
+
+                    /*
+                    /Send Chat Messages
+                    */
+
+                    $("body").on("click",
+                        "a.sendchat",
+                        function (e) {
+                            e.preventDefault();
+                            var $this = $(this);
+                            var friendId = $this.data("id");
+                            var friendUsername = $this.data("friend");
+                            var message = $this.parent().find("textarea").val();
+
+                            $this.parent().find("textarea").val("");
+
+                            hub.server.sendChat(friendId, friendUsername, message);
+                        });
+
+                    $("body").on("keypress",
+                        ".chatbox textarea",
+                        function (e) {
+                            if (e.which == 13) {
+                                $(this).parent().find("a.sendchat").click();
+                                setTimeout(function() {
+                                    $(this).parent().find("textarea").focus();
+                                }, 0);
+                            }
+                        });
+
+                    /////////////////////////////////////////////////
+
+                });
+
+            /////////////////////////////////////////////////
+
+            /*
+            /Display Friend Requests
+            */
+
+            $("body").on("click",
+                "span.frnotif.red",
+                function() {
+
+                    $("ul#frnotiful").empty();
+
+                    var url = "Profile/DisplayFriendRequests";
+
+                    $.post(url,
+                        {},
+                        function(data) {
+
+                            if (data.length > 0) {
+                                $("ul#frnotiful").append("<li class=close>x</li>");
+                            }
+
+                            for (var i = 0; i < data.length; i++) {
+                                var obj = data[i];
+
+                                $("ul#frnotiful").append('<li class=frnotifli><a href="/' +
+                                    obj.Username +
+                                    '"><img src="ImageUploads/' +
+                                    obj.Id +
+                                    '.jpg" />' +
+                                    ' ' +
+                                    obj.FirstName +
+                                    ' ' +
+                                    obj.LastName +
+                                    ' </a> ' +
+                                    '<a class=accept href=# data-id="' +
+                                    obj.Id +
+                                    '"><span class="glyphicon glyphicon-ok"></span></a>' +
+                                    ' ' +
+                                    '<a class=decline href=# data-id="' +
+                                    obj.Id +
+                                    '"><span class="glyphicon glyphicon-remove"></span></a> </li>');
+                            }
+
+                        });
+                });
+
+            $("body").on("click",
+                "ul#frnotiful li.close",
+                function() {
+                    $("ul#frnotiful").empty();
+                });
+
+            /////////////////////////////////////////////////
+
+            /*
+            /Update wall
+            */
+
+            $('a#sendsay').click(function(e) {
+                e.preventDefault();
+
+                var $this = $(this);
+
+                $this.parent().find("img").removeClass("hide");
+
+                var id = $(this).data("id");
+                var message = $this.parent().find("textarea").val();
+                var url = "Profile/UpdateWallMessage";
+
+                $.post(url,
+                    { id: id, message: message },
+                    function(data) {
+                    }).done(function() {
+                    $this.parent().find("img").addClass("hide");
+                });
+            });
+
+            /////////////////////////////////////////////////
+
+            /*
+            /Open chatbox
+            */
+
+            $("body").on("click", ".chat ul li", function() {
+                var $this = $(this);
+
+                if ($this.hasClass("msg")) $this.removeClass("msg");
+
+                var friend = $this.text().trim();
+
+                var chatboxNumber = $(".chatboxholder .chatbox:not(.hidden)").length;
+
+                var id = $this.data("id");
+
+                var right = 320;
+
+                var cb = $(".chatboxholder #cb" + id);
+
+                if (!cb.length) {
+                    cb.css("right", right * chatboxNumber);
+                } else if (cb.hasClass("hidden")) {
+                    cb.removeClass("hidden");
+                    cb.css("right", right * chatboxNumber);
+                } else {
+                    cb.addClass("hidden");
+                    cb.css("right", right * chatboxNumber);
+                }
+
+            });
+
+            /////////////////////////////////////////////////
+
+            $(".afc").removeClass("hide");
+
+        }); //End ready.
+    </script>
+}
